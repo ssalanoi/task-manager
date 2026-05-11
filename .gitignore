@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtual envs
+.venv/
+venv/
+.env
+.envrc
+
+# Test / cache
+.pytest_cache/
+.ruff_cache/
+.testmondata
+.coverage
+htmlcov/
+
+# Local DB
+*.db
+tasks.db
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Claude Code user-local overrides (per-machine, contains absolute paths)
+.claude/settings.local.json
