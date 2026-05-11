@@ -176,3 +176,7 @@ claude mcp add task-manager `
 ## License
 
 MIT (or whichever the assignment specifies).
+
+## Changelog
+- 2026-05-11: initial public release
+
