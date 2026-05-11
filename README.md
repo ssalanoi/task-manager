@@ -70,7 +70,7 @@ cp backend/.env.example backend/.env
 
 ## Step 1 — Run the backend
 
-Открой **первый терминал** и выполни:
+Open the **first terminal** and run:
 
 ```powershell
 cd C:\Work\task-manager
@@ -79,21 +79,21 @@ $env:API_KEY = "dev-secret-123"
 uvicorn app.main:app --reload --port 8000 --app-dir backend
 ```
 
-Процесс остаётся запущенным. Проверь: открой <http://localhost:8000/docs>, нажми **Authorize**, введи `dev-secret-123`.
+Leave the process running. Verify: open <http://localhost:8000/docs>, click **Authorize**, and enter `dev-secret-123`.
 
-![Swagger UI с эндпоинтами CRUD](docs/images/swagger-ui.png)
+![Swagger UI with CRUD endpoints](docs/images/swagger-ui.png)
 
-*FastAPI Swagger UI: REST CRUD для tasks с обязательной `X-API-Key`.*
+*FastAPI Swagger UI: REST CRUD for tasks, every `/tasks` endpoint requires `X-API-Key`.*
 
-Запуск тестов (в отдельном терминале с активированным venv):
+Run the test suite (in a separate terminal with the venv activated):
 ```powershell
 pytest -q backend/tests
 ```
-Ожидаемый результат: `11 passed`.
+Expected result: `11 passed`.
 
-## Step 2 — Run the MCP server (прямой запуск)
+## Step 2 — Run the MCP server (direct launch)
 
-Прямой запуск для отладки (stdio, завершить Ctrl+C):
+Direct run for debugging (stdio, terminate with Ctrl+C):
 
 ```powershell
 cd C:\Work\task-manager
@@ -103,13 +103,13 @@ $env:API_BASE_URL = "http://localhost:8000"
 python mcp-server/server.py
 ```
 
-> Или просто запусти `run_mcp.bat` — он уже содержит все переменные и полный путь к venv-python.
+> Or simply execute `run_mcp.bat` — it already wraps all env vars and the full path to the venv Python.
 
 ## Step 3 — Validate with MCP Inspector
 
-> **Важно для Windows:** MCP Inspector v0.21 некорректно обрабатывает Windows-пути с `C:\` в поле Arguments (после JSON-эскейпинга путь искажается, например `C:\Work\task-manager\mcp-server\server.py` → `C:\Work\task-manager\Worktask-managermcp-serverserver.py`). Обходное решение — использовать `python` как команду (без пути) и добавить venv в `PATH` перед запуском Inspector.
+> **Important for Windows:** MCP Inspector v0.21 mishandles Windows paths that start with `C:\` in the Arguments field — after JSON escaping the path is mangled (e.g. `C:\Work\task-manager\mcp-server\server.py` → `C:\Work\task-manager\Worktask-managermcp-serverserver.py`). The workaround is to use `python` as the command (without a path) and to prepend the venv to `PATH` before launching the Inspector.
 
-Открой **новый терминал** (бэкенд должен быть запущен в другом):
+Open a **new terminal** (the backend must already be running in another one):
 
 ```powershell
 cd C:\Work\task-manager
@@ -120,38 +120,38 @@ $env:API_BASE_URL = "http://localhost:8000"
 & "C:\Program Files\nodejs\npx.cmd" "@modelcontextprotocol/inspector" python "mcp-server/server.py"
 ```
 
-Inspector напечатает URL вида `http://localhost:6274/?MCP_PROXY_AUTH_TOKEN=...` и откроет браузер автоматически.
+The Inspector prints a URL such as `http://localhost:6274/?MCP_PROXY_AUTH_TOKEN=...` and opens the browser automatically.
 
-**В браузере:**
-- Поля Command / Arguments уже заполнены (`python` / `mcp-server/server.py`) — **не меняй их**
-- Нажми **Connect**
+**In the browser:**
+- The Command / Arguments fields are pre-filled (`python` / `mcp-server/server.py`) — **do not edit them**
+- Click **Connect**
 
-![MCP Inspector с подключённым task-manager сервером](docs/images/mcp-inspector-tools.png)
+![MCP Inspector with task-manager server connected](docs/images/mcp-inspector-tools.png)
 
-*MCP Inspector v0.21.2 показывает `task-manager` (Version 1.27.1) Connected, на вкладке Tools — все 5 инструментов.*
+*MCP Inspector v0.21.2 shows `task-manager` (Version 1.27.1) Connected. The Tools tab lists all 5 tools.*
 
-### Чеклист проверки в Inspector
+### Inspector verification checklist
 
-**Tools tab** — вызови каждый инструмент:
-1. `add_task` → `{"title": "Test task", "priority": "high"}` — должен вернуть объект с `id`
-2. `get_task` → `{"id": <id из шага 1>}` — должен вернуть тот же объект
-3. `get_all_tasks` → `{"status": "todo"}` — должен содержать созданную задачу
-4. `update_task` → `{"id": <id>, "patch": {"status": "done"}}` — статус обновлён
-5. `delete_task` → `{"id": <id>}` — возвращает `{"deleted": true}`; повторный `get_task` → 404
+**Tools tab** — call each tool:
+1. `add_task` → `{"title": "Test task", "priority": "high"}` — should return an object with an `id`
+2. `get_task` → `{"id": <id from step 1>}` — should return the same object
+3. `get_all_tasks` → `{"status": "todo"}` — should contain the new task
+4. `update_task` → `{"id": <id>, "patch": {"status": "done"}}` — status updated
+5. `delete_task` → `{"id": <id>}` — returns `{"deleted": true}`; a subsequent `get_task` returns 404
 
-**Resources tab** — прочитай каждый ресурс:
-- `tasks://all` — все задачи
-- `tasks://completed` — только `status=done`
-- `tasks://today` — открытые задачи на сегодня / просроченные
-- `tasks://in-progress` — только `status=in_progress`
+**Resources tab** — read each resource:
+- `tasks://all` — all tasks
+- `tasks://completed` — only `status=done`
+- `tasks://today` — open tasks due today or overdue
+- `tasks://in-progress` — only `status=in_progress`
 
 **Prompts tab:**
-- `daily-plan` — текст промпта со ссылками на ресурсы
-- `prioritize-tasks` — текст с правилами сортировки
+- `daily-plan` — the prompt body should reference resources
+- `prioritize-tasks` — the prompt body should describe the sorting rules
 
-**Негативный тест:** в терминале с Inspector замени `$env:API_KEY = "wrong"` и нажми Connect — инструменты должны вернуть ошибку 401.
+**Negative test:** in the Inspector terminal, override `$env:API_KEY = "wrong"` and click Connect — every tool call must surface a 401 error.
 
-> Полный чеклист всех слоёв системы (tools/resources/prompts/skills/agents/hooks/validation) находится в [`TESTING.md`](./TESTING.md).
+> The full checklist for every layer of the system (tools / resources / prompts / skills / agents / hooks / validation) lives in [`TESTING.md`](./TESTING.md).
 
 ## Step 4 — Connect to Claude Code
 
@@ -163,48 +163,45 @@ claude mcp add task-manager `
   -- C:/Work/task-manager/.venv/Scripts/python.exe C:/Work/task-manager/mcp-server/server.py
 ```
 
-> **Важно:** команду нужно выполнять из папки `C:\Work\task-manager` и использовать **полный путь к venv python** — иначе Claude Code возьмёт системный Python без установленного `mcp`.
+> **Important:** run the command from inside `C:\Work\task-manager` and pass the **full path to the venv Python** — otherwise Claude Code falls back to the system Python, which does not have `mcp` installed.
 
-Проверь подключение:
+Verify the connection:
 ```powershell
 claude mcp list
 ```
-Ожидаемый вывод: `task-manager: ... - ✓ Connected`.
+Expected output: `task-manager: ... - ✓ Connected`.
 
-Открой проект в Claude Code, выполни `/mcp` — должен появиться `task-manager`. Попробуй:
+Open the project in Claude Code and run `/mcp` — `task-manager` should appear. Try:
 
-- *"Добавь задачу написать отчёт до пятницы, приоритет высокий."*
-- *"Что мне сделать сегодня?"*
-- `/daily-plan` или `/prioritize-tasks` (project-level slash commands)
-- В основном CLI терминале — также `/mcp__task-manager__daily-plan` (полный MCP-формат)
+- *"Add a task to write the weekly report by Friday, high priority."*
+- *"What should I focus on today?"*
+- `/daily-plan` or `/prioritize-tasks` (project-level slash commands)
+- In the main CLI terminal you can also use the full MCP form `/mcp__task-manager__daily-plan`
 
-> **IDE-расширение Claude Code (VS Code/JetBrains):** MCP-промпты с префиксом `/mcp__...` могут не работать как slash-команды в IDE — только в основном CLI. Поэтому в репозитории дублируются project-level команды в `.claude/commands/daily-plan.md` и `.claude/commands/prioritize-tasks.md` — они работают в любом интерфейсе Claude Code.
+> **Claude Code IDE extension (VS Code / JetBrains):** MCP prompts with the `/mcp__...` prefix may not be recognized as slash commands inside the IDE — only inside the main CLI. The repo therefore mirrors them as project-level commands in `.claude/commands/daily-plan.md` and `.claude/commands/prioritize-tasks.md`, which work in every Claude Code surface.
 
 ## Development workflow
 
 1. `.\.venv\Scripts\Activate.ps1`
-2. Редактируй `.py` файлы. Хук **PostToolUse** автоматически запускает `ruff --fix`, `black` и соответствующий `pytest`.
-3. После добавления новой функции выполни `/add-test path/to/file.py::name`. Агент `test-writer` создаст pytest-файл; хук запустит тесты.
-4. Зафиксируй изменения: `git add <paths>`, затем `/git-commit`. Skill вызывает агент `code-reviewer` и при успехе создаёт коммит в формате Conventional Commits.
+2. Edit `.py` files. The **PostToolUse** hook automatically runs `ruff --fix`, `black`, and the relevant `pytest` suite.
+3. After adding a new function, run `/add-test path/to/file.py::name`. The `test-writer` sub-agent generates the pytest file and the post-edit hook executes it.
+4. Stage your changes (`git add <paths>`) and run `/git-commit`. The skill invokes the `code-reviewer` sub-agent and, on approval, creates a Conventional Commits commit.
 
-Хук **PreToolUse** (`hooks/precheck_secrets.py`) блокирует любое изменение файла, содержащее литеральный API-ключ, AWS-ключ, GitHub PAT или приватный ключ. Используй `os.getenv("API_KEY", "dev-secret-123")`.
+The **PreToolUse** hook (`hooks/precheck_secrets.py`) blocks any edit that would write a literal API key, AWS key, GitHub PAT, or private key into a file. Read configuration through `os.getenv("API_KEY", "dev-secret-123")` instead.
 
 ## Troubleshooting
 
-| Симптом | Причина | Решение |
+| Symptom | Cause | Fix |
 | --- | --- | --- |
-| MCP Inspector: путь сломан (`Worktask-manager...`) | Inspector v0.21 не обрабатывает Windows-пути с `C:\` | Добавь venv в `$env:PATH` и используй `python` + относительный путь как показано в Step 3 |
-| `401 Missing or invalid API key` из MCP-инструментов | `API_KEY` не установлен или не совпадает с бэкендом | Установи одинаковое значение в обоих терминалах |
-| `tasks://today` возвращает пустой массив | Все открытые задачи не имеют `due_date` или уже `done` | Добавь задачу с `due_date` сегодня или в прошлом (через PUT — POST не пропустит прошлое) |
-| `claude mcp list` показывает `Failed to connect` | Claude Code берёт системный Python без `mcp` | Используй полный путь к venv: `C:/Work/task-manager/.venv/Scripts/python.exe` |
-| В Claude Code не видно `task-manager` в `/mcp` | `claude.json` хранит ключ проекта с `/` (forward) от `claude mcp add`, а Claude Code ищет с `\` (back) | Запускай `claude mcp add` из правильной папки. Если не помогло — отредактируй `C:\Users\<user>\.claude.json`: перенеси содержимое `mcpServers` из ключа `C:/Work/task-manager` в `C:\\Work\\task-manager` |
-| `/daily-plan` не распознан в IDE | IDE-расширение Claude Code не поддерживает MCP-промпты как slash-команды | Используй project-level команды из `.claude/commands/` (имя без префикса) или попроси Claude естественным языком |
-| Pre-edit хук блокирует легитимную запись | Ложное срабатывание паттерна | Читай из `os.getenv(...)`; allowlist это покрывает |
-| `pytest` не запускается из post-edit хука | Инструменты не установлены в активном venv | `pip install -e ./backend[dev] -e ./mcp-server[dev]` |
+| MCP Inspector: mangled path (e.g. `Worktask-manager...`) | Inspector v0.21 mishandles Windows paths starting with `C:\` | Prepend the venv to `$env:PATH` and use `python` + relative path as shown in Step 3 |
+| `401 Missing or invalid API key` from MCP tools | `API_KEY` is unset or does not match the backend | Set the same value in both terminals |
+| `tasks://today` returns an empty array | All open tasks have no `due_date` or are already `done` | Add a task with a `due_date` today or in the past (use PUT — POST rejects past dates) |
+| `claude mcp list` reports `Failed to connect` | Claude Code uses the system Python without `mcp` installed | Pass the full venv path: `C:/Work/task-manager/.venv/Scripts/python.exe` |
+| `task-manager` is missing from `/mcp` in Claude Code | `claude.json` stores the project key with forward slashes (`/`) from `claude mcp add`, while Claude Code looks it up with backslashes (`\`) | Run `claude mcp add` from the correct directory. If the issue persists, edit `C:\Users\<user>\.claude.json` and move the `mcpServers` block from the `C:/Work/task-manager` key into `C:\\Work\\task-manager` |
+| `/daily-plan` is not recognized in the IDE | The Claude Code IDE extension does not expose MCP prompts as slash commands | Use the project-level commands in `.claude/commands/` (no prefix) or ask Claude in natural language |
+| The pre-edit hook blocks a legitimate write | Pattern false-positive | Read from `os.getenv(...)`; the allowlist already covers that idiom |
+| `pytest` is not invoked by the post-edit hook | Dev tools are not installed in the active venv | `pip install -e ./backend[dev] -e ./mcp-server[dev]` |
 
 ## License
 
 MIT (or whichever the assignment specifies).
-
-## Changelog
-- 2026-05-11: initial public release
