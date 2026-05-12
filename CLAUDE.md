@@ -22,26 +22,32 @@ Claude Code  ──MCP/stdio──▶  mcp-server/server.py  ──HTTPS+X-API-K
 - `get_all_tasks(status?, priority?, tag?, due_before?, due_after?)` → filtered list
 - `update_task(id, patch)` → partial update
 - `delete_task(id)` → delete
+- `get_task_stats()` → aggregate counts by status and priority, plus overdue count
 
 ### Resources (read-only — prefer these for browsing)
 - `tasks://all` — everything
 - `tasks://completed` — `status=done`
 - `tasks://today` — open tasks due today or overdue
 - `tasks://in-progress` — `status=in_progress`
+- `tasks://overdue` — non-done tasks whose due_date is strictly in the past
+- `tasks://high-priority` — non-done tasks with priority=urgent or high, sorted by urgency then due_date
 
-Use a resource when you want a list view or want to seed reasoning with current state. Use a tool when you need a specific id or any side effect.
+Use a resource when you want a list view or want to seed reasoning with current state. Use a tool when you need a specific id, aggregation, or any side effect.
 
 ### Prompts (slash commands)
 - `/daily-plan` — builds today's plan from `tasks://today` + `tasks://in-progress`
 - `/prioritize-tasks` — re-orders open tasks by overdue → priority → due-date
+- `/weekly-review` — structured weekly review: completed work, overdue tasks, and recommended focus for next week
 
 ## Skills (in `.claude/skills/`)
 - `/git-commit` — drafts a Conventional Commits message, optionally invokes `code-reviewer`, then commits.
 - `/add-test` — generates a pytest skeleton for a function or module via the `test-writer` sub-agent.
+- `/standup` — generates a Yesterday / Today / Blockers standup message from current task state.
 
 ## Sub-agents (in `.claude/agents/`)
 - `code-reviewer` — read-only diff review (secrets, architecture, schema parity, error handling, tests). Invoke before commits.
 - `test-writer` — writes pytest files following project conventions. Invoked by `/add-test`.
+- `task-planner` — analyzes the full backlog, triages by urgency, identifies potential blockers and dependencies, and recommends task breakdowns. Invoke for "plan my week" or "what should I work on next?"
 
 ## Hooks (in `hooks/`, wired in `.claude/settings.json`)
 - **PreToolUse** on `Edit|Write|MultiEdit` → `hooks/precheck_secrets.py` blocks edits that would commit a real secret. Allowlist: `dev-secret-123`, `os.getenv(...)`.

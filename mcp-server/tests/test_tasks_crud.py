@@ -16,6 +16,7 @@ sys.path.insert(0, str(ROOT))
 
 from mcp.server.fastmcp import FastMCP  # noqa: E402
 
+from api_client import ApiError  # noqa: E402
 from tools import tasks_crud  # noqa: E402
 
 
@@ -113,3 +114,66 @@ async def test_invalid_priority_rejected(server: FastMCP) -> None:
             )
         assert "priority" in str(excinfo.value).lower()
         m.assert_not_awaited()
+
+
+# ---------------------------------------------------------------------------
+# get_task_stats
+# ---------------------------------------------------------------------------
+
+_MIXED_TASKS = [
+    {"id": 1, "status": "todo", "priority": "urgent", "due_date": "2020-01-01"},
+    {"id": 2, "status": "todo", "priority": "high", "due_date": "2030-01-01"},
+    {"id": 3, "status": "in_progress", "priority": "high", "due_date": None},
+    {"id": 4, "status": "done", "priority": "medium", "due_date": "2020-01-01"},
+    {"id": 5, "status": "done", "priority": "low", "due_date": None},
+]
+
+
+async def test_stats_mixed_tasks(server: FastMCP) -> None:
+    with patch("tools.tasks_crud.api_get", new=AsyncMock(return_value=_MIXED_TASKS)):
+        result = await server.call_tool("get_task_stats", {})
+    data = result[0].text if hasattr(result[0], "text") else result
+    import json as _json
+
+    stats = _json.loads(data) if isinstance(data, str) else data
+    assert stats["total"] == 5
+    assert stats["by_status"] == {"todo": 2, "in_progress": 1, "done": 2}
+    assert stats["by_priority"] == {"low": 1, "medium": 1, "high": 2, "urgent": 1}
+    # task 1 is overdue (past due, not done); task 4 is done so not counted
+    assert stats["overdue"] == 1
+
+
+async def test_stats_empty_list(server: FastMCP) -> None:
+    with patch("tools.tasks_crud.api_get", new=AsyncMock(return_value=[])):
+        result = await server.call_tool("get_task_stats", {})
+    data = result[0].text if hasattr(result[0], "text") else result
+    import json as _json
+
+    stats = _json.loads(data) if isinstance(data, str) else data
+    assert stats["total"] == 0
+    assert stats["by_status"] == {"todo": 0, "in_progress": 0, "done": 0}
+    assert stats["by_priority"] == {"low": 0, "medium": 0, "high": 0, "urgent": 0}
+    assert stats["overdue"] == 0
+
+
+async def test_stats_propagates_api_error(server: FastMCP) -> None:
+    with patch(
+        "tools.tasks_crud.api_get",
+        new=AsyncMock(side_effect=ApiError(500, "internal error")),
+    ):
+        with pytest.raises(Exception):
+            await server.call_tool("get_task_stats", {})
+
+
+async def test_stats_no_due_dates(server: FastMCP) -> None:
+    tasks = [
+        {"id": 1, "status": "todo", "priority": "high", "due_date": None},
+        {"id": 2, "status": "in_progress", "priority": "low", "due_date": None},
+    ]
+    with patch("tools.tasks_crud.api_get", new=AsyncMock(return_value=tasks)):
+        result = await server.call_tool("get_task_stats", {})
+    data = result[0].text if hasattr(result[0], "text") else result
+    import json as _json
+
+    stats = _json.loads(data) if isinstance(data, str) else data
+    assert stats["overdue"] == 0

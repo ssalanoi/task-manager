@@ -95,3 +95,37 @@ def register(mcp: Any) -> None:
     async def delete_task(id: int) -> dict:
         """Delete a task by id. Returns {"deleted": true, "id": ...}."""
         return await api_delete(f"/tasks/{id}")
+
+    @mcp.tool()
+    async def get_task_stats() -> dict:
+        """Return aggregate counts: total tasks, breakdown by status and priority, and overdue count.
+
+        Overdue = due_date is in the past and status != done.
+        Useful for a quick health-check before planning sessions.
+        """
+        from datetime import date as _date
+
+        all_tasks = await api_get("/tasks")
+        today = _date.today().isoformat()
+
+        by_status: dict[str, int] = {"todo": 0, "in_progress": 0, "done": 0}
+        by_priority: dict[str, int] = {"low": 0, "medium": 0, "high": 0, "urgent": 0}
+        overdue = 0
+
+        for task in all_tasks:
+            status = task.get("status", "todo")
+            priority = task.get("priority", "medium")
+            if status in by_status:
+                by_status[status] += 1
+            if priority in by_priority:
+                by_priority[priority] += 1
+            due = task.get("due_date")
+            if due and due < today and status != "done":
+                overdue += 1
+
+        return {
+            "total": len(all_tasks),
+            "by_status": by_status,
+            "by_priority": by_priority,
+            "overdue": overdue,
+        }

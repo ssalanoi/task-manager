@@ -18,15 +18,15 @@ task-manager/
 ├── mcp-server/              FastMCP server
 │   ├── server.py            entrypoint (stdio)
 │   ├── api_client.py        single source of the X-API-Key
-│   ├── tools/tasks_crud.py  add/get/update/delete + filtered list
-│   ├── resources/           tasks://all, completed, today, in-progress
-│   ├── prompts/             /daily-plan, /prioritize-tasks (MCP-level)
+│   ├── tools/tasks_crud.py  add/get/update/delete + filtered list + get_task_stats
+│   ├── resources/           tasks://all, completed, today, in-progress, overdue, high-priority
+│   ├── prompts/             /daily-plan, /prioritize-tasks, /weekly-review (MCP-level)
 │   └── tests/               test_tools.py, test_tasks_crud.py
 ├── .claude/
 │   ├── settings.json        wires the hooks
 │   ├── skills/              /git-commit, /add-test
-│   ├── agents/              code-reviewer, test-writer
-│   └── commands/            /daily-plan, /prioritize-tasks (work in IDE plugin too)
+│   ├── agents/              code-reviewer, test-writer, task-planner
+│   └── commands/            /daily-plan, /prioritize-tasks, /weekly-review (work in IDE plugin too)
 ├── hooks/
 │   ├── precheck_secrets.py  PreToolUse — blocks secret leaks
 │   ├── post_edit.ps1        PostToolUse — ruff + black + pytest (Windows)
@@ -128,7 +128,7 @@ The Inspector prints a URL such as `http://localhost:6274/?MCP_PROXY_AUTH_TOKEN=
 
 ![MCP Inspector with task-manager server connected](docs/images/mcp-inspector-tools.png)
 
-*MCP Inspector v0.21.2 shows `task-manager` (Version 1.27.1) Connected. The Tools tab lists all 5 tools.*
+*MCP Inspector v0.21.2 shows `task-manager` (Version 1.27.1) Connected. The Tools tab lists all 6 tools.*
 
 ### Inspector verification checklist
 
@@ -138,16 +138,20 @@ The Inspector prints a URL such as `http://localhost:6274/?MCP_PROXY_AUTH_TOKEN=
 3. `get_all_tasks` → `{"status": "todo"}` — should contain the new task
 4. `update_task` → `{"id": <id>, "patch": {"status": "done"}}` — status updated
 5. `delete_task` → `{"id": <id>}` — returns `{"deleted": true}`; a subsequent `get_task` returns 404
+6. `get_task_stats` → `{}` — returns `{total, by_status, by_priority, overdue}`
 
 **Resources tab** — read each resource:
 - `tasks://all` — all tasks
 - `tasks://completed` — only `status=done`
 - `tasks://today` — open tasks due today or overdue
 - `tasks://in-progress` — only `status=in_progress`
+- `tasks://overdue` — non-done tasks with `due_date` strictly in the past
+- `tasks://high-priority` — non-done urgent+high tasks, sorted by urgency then due_date
 
 **Prompts tab:**
 - `daily-plan` — the prompt body should reference resources
 - `prioritize-tasks` — the prompt body should describe the sorting rules
+- `weekly-review` — 4-section report: completed, in-progress, overdue, recommended focus
 
 **Negative test:** in the Inspector terminal, override `$env:API_KEY = "wrong"` and click Connect — every tool call must surface a 401 error.
 
@@ -175,10 +179,12 @@ Open the project in Claude Code and run `/mcp` — `task-manager` should appear.
 
 - *"Add a task to write the weekly report by Friday, high priority."*
 - *"What should I focus on today?"*
-- `/daily-plan` or `/prioritize-tasks` (project-level slash commands)
+- `/daily-plan`, `/prioritize-tasks`, or `/weekly-review` (project-level slash commands)
+- *"Plan my week"* or *"What should I work on next?"* — invokes the `task-planner` sub-agent
+- *"Show me task stats"* — calls `get_task_stats` for an aggregate health-check
 - In the main CLI terminal you can also use the full MCP form `/mcp__task-manager__daily-plan`
 
-> **Claude Code IDE extension (VS Code / JetBrains):** MCP prompts with the `/mcp__...` prefix may not be recognized as slash commands inside the IDE — only inside the main CLI. The repo therefore mirrors them as project-level commands in `.claude/commands/daily-plan.md` and `.claude/commands/prioritize-tasks.md`, which work in every Claude Code surface.
+> **Claude Code IDE extension (VS Code / JetBrains):** MCP prompts with the `/mcp__...` prefix may not be recognized as slash commands inside the IDE — only inside the main CLI. The repo therefore mirrors them as project-level commands in `.claude/commands/` (`daily-plan.md`, `prioritize-tasks.md`, `weekly-review.md`), which work in every Claude Code surface.
 
 ## Development workflow
 

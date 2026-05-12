@@ -71,6 +71,15 @@ Add tag "review" to task 1
 Delete task 5
 ```
 
+### `get_task_stats` — aggregate health-check
+```
+Show me task statistics
+```
+```
+How many tasks are overdue?
+```
+→ Expect a JSON object with `total`, `by_status` (todo/in_progress/done counts), `by_priority` (low/medium/high/urgent counts), and `overdue` count.
+
 ---
 
 ## 2. Resources — read-only URIs
@@ -87,6 +96,14 @@ Read tasks://today — what's due or overdue
 ```
 Read tasks://in-progress — what's actively being worked on
 ```
+```
+Show me all overdue tasks
+```
+→ Uses `tasks://overdue` — returns non-done tasks with `due_date` strictly before today.
+```
+Show me high-priority tasks
+```
+→ Uses `tasks://high-priority` — returns non-done tasks with `priority=urgent` or `priority=high`, sorted urgent-first then by due_date.
 
 **Read-only protection check:**
 ```
@@ -102,12 +119,14 @@ Using only resources (not tools), set task 1 status to done
 ```
 /daily-plan
 /prioritize-tasks
+/weekly-review
 ```
 
 ### Equivalent custom slash commands (work everywhere):
 ```
 /daily-plan
 /prioritize-tasks
+/weekly-review
 ```
 
 ### Natural-language fallback (any interface):
@@ -117,6 +136,10 @@ Build me today's plan
 ```
 Rank all open tasks by priority with rationale
 ```
+```
+Give me a weekly review
+```
+→ `/weekly-review` returns a 4-section report: **Completed**, **In Progress**, **Overdue**, **Recommended focus for next week** with a retrospective paragraph.
 
 ---
 
@@ -158,6 +181,15 @@ Use the code-reviewer agent to audit backend/app/routers/tasks.py for security a
 Use the test-writer agent to generate tests for get_all_tasks in mcp-server/tools/tasks_crud.py — cover the happy path, status filtering, and the empty-result case
 ```
 
+### `task-planner`
+```
+Plan my week
+```
+```
+What should I work on next?
+```
+→ The agent calls `get_task_stats` and `get_all_tasks`, then outputs a triage table with four buckets: **Critical** (overdue urgent), **This week** (high-priority with near due dates), **High-value** (high priority, flexible deadline), **Backlog**. It also flags tasks that are too broad and suggests breaking them down.
+
 ---
 
 ## 6. Hooks — automatic, deterministic
@@ -197,14 +229,18 @@ Run as a single conversation:
 
 ```
 1. Add 5 tasks with mixed priorities and due dates (include some dated yesterday to test overdue handling)
-2. Read tasks://today — should contain overdue + today's items
-3. /prioritize-tasks — produce a ranked table
-4. Move the highest-priority task to in_progress
-5. Read tasks://in-progress — should now include that task
-6. Mark it done
-7. Read tasks://completed — it should appear there
-8. /daily-plan — today's plan should reflect the new state
-9. Delete all completed tasks
+2. Show me task statistics                              ← get_task_stats
+3. Read tasks://overdue — should contain yesterday's items
+4. Read tasks://high-priority — should list urgent/high tasks sorted by urgency
+5. /prioritize-tasks — produce a ranked table
+6. Plan my week                                         ← task-planner agent
+7. Move the highest-priority task to in_progress
+8. Read tasks://in-progress — should now include that task
+9. Mark it done
+10. Read tasks://completed — it should appear there
+11. /weekly-review — report should reflect completed + remaining work
+12. /daily-plan — today's plan should reflect the new state
+13. Delete all completed tasks
 ```
 
 ---
@@ -243,12 +279,13 @@ Show task with id=99999
 |---|---|
 | Tools (CRUD) | add → get → update → delete sequence |
 | Tool filters | get_all_tasks with status / priority / tag / due_date |
-| Resources readable | all four URIs |
+| `get_task_stats` | aggregate counts including overdue |
+| Resources readable | all six URIs (all, completed, today, in-progress, overdue, high-priority) |
 | Resources read-only | mutation attempt via resource refused |
-| MCP Prompts | /daily-plan, /prioritize-tasks |
-| Custom slash commands | /daily-plan, /prioritize-tasks in any interface |
+| MCP Prompts | /daily-plan, /prioritize-tasks, /weekly-review |
+| Custom slash commands | /daily-plan, /prioritize-tasks, /weekly-review in any interface |
 | Skills | /git-commit, /add-test |
-| Sub-agents | code-reviewer, test-writer |
+| Sub-agents | code-reviewer, test-writer, task-planner |
 | Pre-edit hook blocks secrets | hard-coded API key write attempt |
 | Post-edit hook formats + tests | edit on a .py file |
 | Backend validation | empty title, past due_date |
